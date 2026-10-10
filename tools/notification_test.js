@@ -6,6 +6,7 @@ const path = require('path');
 const vm = require('vm');
 
 const root = path.join(__dirname, '..');
+const utilCode = fs.readFileSync(path.join(root, 'lib', 'util.js'), 'utf8');
 const storeCode = fs.readFileSync(path.join(root, 'lib', 'store.js'), 'utf8');
 const notifyCode = fs.readFileSync(path.join(root, 'lib', 'notify.js'), 'utf8');
 
@@ -68,6 +69,7 @@ function setup({ createFailure = null, nativeFailure = null, permissionLevel = '
       }
     }
   };
+  vm.runInThisContext(utilCode, { filename: 'lib/util.js' });
   vm.runInThisContext(storeCode, { filename: 'lib/store.js' });
   vm.runInThisContext(notifyCode, { filename: 'lib/notify.js' });
   return {

@@ -16,7 +16,7 @@ if (typeof importScripts === 'function') {
 }
 
 const ALARM_CHECK = 'mailru-check';
-const HANDLED_TTL_MS = 10 * 60 * 1000; // сколько помнить открытые/прочитанные письма
+const HANDLED_MIN_TTL_MS = 10 * 60 * 1000; // сколько минимум помнить открытые/прочитанные письма
 
 /* ---------------- значок (badge) ---------------- */
 
@@ -114,7 +114,7 @@ async function checkAccount(state, settings, email, check = {}) {
   // --- уведомления о новых (только если список успешно получен) ---
   if (msgsOk) {
     const prevIds = new Set((acc.messages || []).map(m => m.id));
-    const handled = pruneHandled(acc);
+    const handled = pruneHandled(acc, settings);
     const fresh = msgs.filter(m => !prevIds.has(m.id) && !handled[m.id]);
     if (acc.initialized && fresh.length > 0) {
       const accountSettings = resolveAccountNotificationSettings(settings, email);
@@ -253,11 +253,13 @@ function trashCore(email, msgId, doBroadcast) {
 }
 
 // Убирает устаревшие записи «обработанных» писем и возвращает актуальные.
-function pruneHandled(acc) {
+// Срок — не меньше двух интервалов проверки, чтобы запись пережила хотя бы одну проверку.
+function pruneHandled(acc, settings) {
+  const ttl = Math.max(HANDLED_MIN_TTL_MS, 2 * (parseInt(settings.intervalMinutes, 10) || 2) * 60 * 1000);
   const now = Date.now();
   const left = {};
   for (const [id, at] of Object.entries(acc.handled || {})) {
-    if (now - at < HANDLED_TTL_MS) left[id] = at;
+    if (now - at < ttl) left[id] = at;
   }
   acc.handled = left;
   return left;

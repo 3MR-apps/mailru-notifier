@@ -402,5 +402,42 @@ async function waitState(pred, timeout = 3000) {
   assert.strictEqual(createdNotifs[0].opt.message, 'Настоящее новое');
   console.log('✓ сценарий 18: нет повторного уведомления после «Открыть»');
 
+
+  // ========== Сценарий 19: сводное уведомление по-русски, частые сущности ==========
+  messagesBody = () => MESSAGES;
+  FOLDERS[0].messages_unread = 2;
+  loadBackground(makeFetch({ auth: true }));
+  await waitState(s => s && s.lastCheck > 0);
+  store.settings = Object.assign({}, store.settings, { perMessageNotifications: false });
+  const extra = (id) => ({ id, folder: '0', date: Math.floor(Date.now() / 1000), subject: 'S' + id,
+    snippet: '', flags: { unread: true }, correspondents: { from: [{ name: 'X', email: 'x@mail.ru' }] } });
+  messagesBody = () => MESSAGES.concat([extra('201'), extra('202')]);
+  await sendBg({ type: 'refresh' });
+  assert.strictEqual(createdNotifs.length, 1, 'одно сводное уведомление');
+  assert.strictEqual(createdNotifs[0].opt.message, '2 новых письма', 'склонение: 2 новых письма');
+  messagesBody = () => MESSAGES.concat([extra('201'), extra('202'), extra('203')]);
+  await sendBg({ type: 'refresh' });
+  assert.strictEqual(createdNotifs[1].opt.message, '1 новое письмо', 'склонение: 1 новое письмо');
+  assert.strictEqual(decodeEntities('Итоги&hellip; 1&ndash;2 It&rsquo;s &laquo;x&raquo; &copy;'), 'Итоги… 1–2 It’s «x» ©',
+    'частые именованные сущности');
+  console.log('✓ сценарий 19: склонение в сводном уведомлении и сущности');
+
+
+  // ========== Сценарий 20: при длинном интервале «обработанные» письма помнятся дольше ==========
+  messagesBody = () => MESSAGES;
+  FOLDERS[0].messages_unread = 2;
+  loadBackground(makeFetch({ auth: true }));
+  await waitState(s => s && s.lastCheck > 0);
+  store.settings = Object.assign({}, store.settings, { intervalMinutes: 30 });
+  await sendBg({ type: 'openMessage', email: 'user@mail.ru', msgId: '101' });
+  await waitState(s => !s.accounts['user@mail.ru'].messages.some(m => m.id === '101'));
+  store.state.accounts['user@mail.ru'].handled['101'] -= 15 * 60 * 1000; // прошло 15 минут
+  await sendBg({ type: 'refresh' });
+  assert.strictEqual(createdNotifs.length, 0, 'при интервале 30 мин письмо помнится дольше 10 минут');
+  store.state.accounts['user@mail.ru'].handled = { '999': Date.now() - 61 * 60 * 1000 };
+  await sendBg({ type: 'refresh' });
+  assert.deepStrictEqual(store.state.accounts['user@mail.ru'].handled, {}, 'устаревшие записи удаляются');
+  console.log('✓ сценарий 20: срок памяти «обработанных» писем ≥ 2 интервалов');
+
   console.log('\nВСЕ ТЕСТЫ ПРОЙДЕНЫ ✔');
 })().catch(e => { console.error('ТЕСТ ПРОВАЛЕН:', e.message); process.exit(1); });

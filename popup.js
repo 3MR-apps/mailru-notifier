@@ -14,6 +14,8 @@ let collapsed = {};      // email -> true
 let accountOrder = [];   // ручной порядок ящиков (email[])
 let dragCtx = null;        // активное перетаскивание секции
 let pendingRender = false; // отложенный рендер на время перетаскивания
+const pendingActions = new Set(); // письма, по которым ждём ответа «Прочитано»/«Удалить»
+const pendingKey = (email, id) => email + '|' + id;
 
 const $ = (id) => document.getElementById(id);
 
@@ -252,7 +254,9 @@ function renderSections(accounts) {
 
   for (const { email, acc } of sortedAccounts(accounts)) {
     const isCollapsed = !!collapsed[email];
-    const msgs = (acc.messages || []).slice().sort((a, b) => (b.date || 0) - (a.date || 0));
+    const msgs = (acc.messages || [])
+      .filter((m) => !pendingActions.has(pendingKey(email, m.id)))
+      .sort((a, b) => (b.date || 0) - (a.date || 0));
 
     const sec = document.createElement('section');
     sec.className = 'acct' + (isCollapsed ? ' collapsed' : '');
@@ -398,18 +402,16 @@ function buildLetter(email, m) {
     window.close();
   });
 
-  // строка скрывается сразу: ответ может ждать окончания фоновой проверки;
-  // при ошибке строка возвращается
+  // строка скрывается сразу и не появляется при перерисовке, пока ждём ответа:
+  // он может прийти только после фоновой проверки; при ошибке строка возвращается
   const optimisticAction = async (e, type) => {
     e.stopPropagation();
-    const btn = e.currentTarget;
-    btn.classList.add('busy');
+    const key = pendingKey(email, m.id);
+    pendingActions.add(key);
     li.classList.add('hidden');
     const resp = await send({ type, email, msgId: m.id });
-    if (!resp || !resp.ok) {
-      li.classList.remove('hidden');
-      btn.classList.remove('busy');
-    }
+    pendingActions.delete(key);
+    if (!resp || !resp.ok) render();
   };
   li.querySelector('.tool.read').addEventListener('click', (e) => optimisticAction(e, 'markRead'));
   li.querySelector('.tool.trash').addEventListener('click', (e) => optimisticAction(e, 'trash'));
