@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Mail.ru Нотификатор — непрочитанные письма - 3MR",
   "short_name": "Mail.ru Нотификатор - 3MR",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "Уведомления о новых письмах Mail.ru: счётчик непрочитанных на значке, всплывающий список писем и системные уведомления. Работает через вашу текущую сессию браузера — пароль не требуется.",
   "minimum_chrome_version": "110",
   "icons": {
@@ -38,7 +38,6 @@
     "https://portal.mail.ru/*",
     "https://auth.mail.ru/*",
     "https://e.mail.ru/*",
-    "https://mailru-checker-api.e.mail.ru/*",
-    "https://*.mail.ru/*"
+    "https://mailru-checker-api.e.mail.ru/*"
   ]
 }

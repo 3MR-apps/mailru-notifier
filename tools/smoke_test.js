@@ -439,5 +439,20 @@ async function waitState(pred, timeout = 3000) {
   assert.deepStrictEqual(store.state.accounts['user@mail.ru'].handled, {}, 'устаревшие записи удаляются');
   console.log('✓ сценарий 20: срок памяти «обработанных» писем ≥ 2 интервалов');
 
+
+  // ========== Сценарий 21: доступ только к адресам, которые расширение реально вызывает ==========
+  const manifest = JSON.parse(require('fs').readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8'));
+  assert.deepStrictEqual(manifest.host_permissions.slice().sort(), [
+    'https://auth.mail.ru/*',
+    'https://e.mail.ru/*',
+    'https://mailru-checker-api.e.mail.ru/*',
+    'https://portal.mail.ru/*'
+  ], 'без широкого доступа ко всем поддоменам mail.ru');
+  const calledHosts = new Set(fetchLog.map(u => new URL(u).host));
+  for (const host of calledHosts) {
+    assert.ok(manifest.host_permissions.includes(`https://${host}/*`), 'запрос к ' + host + ' покрыт разрешением');
+  }
+  console.log('✓ сценарий 21: host_permissions только для нужных адресов');
+
   console.log('\nВСЕ ТЕСТЫ ПРОЙДЕНЫ ✔');
 })().catch(e => { console.error('ТЕСТ ПРОВАЛЕН:', e.message); process.exit(1); });
