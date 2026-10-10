@@ -459,36 +459,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({ ok: true, items: await loadWindowNotices() });
           break;
         }
-        case 'ackNoticeQueue': {
-          const ids = new Set(Array.isArray(msg.ids) ? msg.ids.map(String) : []);
-          await updateWindowNotices(async (items) => {
-            const left = items.filter((item) => !ids.has(String(item.id)));
-            const displayed = new Set((await loadDisplayedNoticeIds()).map(String));
-            for (const id of ids) displayed.delete(id);
-            await saveDisplayedNoticeIds([...displayed]);
-            return left;
-          });
+        case 'markNoticeDisplayed':
+          await markNoticesDisplayed(Array.isArray(msg.ids) ? msg.ids : []);
           sendResponse({ ok: true });
           break;
-        }
-        case 'markNoticeDisplayed': {
-          const ids = new Set((Array.isArray(msg.ids) ? msg.ids : []).map(String));
-          const displayed = new Set((await loadDisplayedNoticeIds()).map(String));
-          for (const id of ids) displayed.add(id);
-          await saveDisplayedNoticeIds([...displayed]);
+        case 'ackDisplayedNoticeQueue':
+          await discardDisplayedNoticeBatches();
           sendResponse({ ok: true });
           break;
-        }
-        case 'ackDisplayedNoticeQueue': {
-          await updateWindowNotices(async (items) => {
-            const displayed = new Set((await loadDisplayedNoticeIds()).map(String));
-            const left = items.filter((item) => !displayed.has(String(item.id)));
-            await clearDisplayedNoticeIds();
-            return left;
-          });
-          sendResponse({ ok: true });
-          break;
-        }
         case 'resetState': {
           await withStateLock(() => chrome.storage.local.remove(['state', 'pendingNotifs']));
           await clearAllTokens();

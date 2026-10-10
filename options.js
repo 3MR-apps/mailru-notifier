@@ -74,11 +74,19 @@ function renderSoundChoice(soundId) {
   $('btn-sound-remove').hidden = !customSound;
 }
 
-let soundBusy = false;
+let soundBusy = false;   // идёт загрузка/удаление своего звука
+let formLocked = false;  // форма заблокирована, например на время тестового уведомления
+
+// кнопки звука выключены, пока идёт операция со звуком или заблокирована форма
+function syncSoundControls() {
+  for (const id of ['soundId', 'btn-sound-preview', 'btn-sound-upload', 'btn-sound-remove']) {
+    $(id).disabled = soundBusy || formLocked;
+  }
+}
 
 function setSoundBusy(busy) {
   soundBusy = busy;
-  for (const id of ['soundId', 'btn-sound-preview', 'btn-sound-upload', 'btn-sound-remove']) $(id).disabled = busy;
+  syncSoundControls();
 }
 
 function previewSound() {
@@ -190,13 +198,13 @@ function renderAccountPreferences(state, settings) {
     const select = document.createElement('select');
     select.dataset.email = email;
     select.setAttribute('aria-label', 'Уведомления для ' + email);
-    for (const [value, title] of [['inherit', 'По общим настройкам'], ['sound', 'Со звуком'], ['silent', 'Без звука'], ['counter', 'Только счётчик']]) {
+    for (const { id: value, title } of ACCOUNT_MODES) {
       const option = document.createElement('option');
       option.value = value;
       option.textContent = title;
       select.appendChild(option);
     }
-    select.value = ['inherit', 'sound', 'silent', 'counter'].includes(modes[email]) ? modes[email] : 'inherit';
+    select.value = isAccountMode(modes[email]) ? modes[email] : 'inherit';
     select.addEventListener('change', async () => {
       if (!settingsDraft) settingsDraft = {};
       if (!settingsDraft.accountNotificationModes) settingsDraft.accountNotificationModes = {};
@@ -279,7 +287,8 @@ async function save(silent) {
 
 function disableSettingsInputs(disabled) {
   $('interval').disabled = disabled;
-  setSoundBusy(disabled);
+  formLocked = disabled;
+  syncSoundControls();
   for (const key of SETTING_KEYS) $(key).disabled = disabled;
   for (const select of $('account-preferences').querySelectorAll('select')) select.disabled = disabled;
 }

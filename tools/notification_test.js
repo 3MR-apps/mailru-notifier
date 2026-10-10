@@ -249,6 +249,13 @@ const msg = (id) => [{ id, fromName: 'Sender', fromEmail: 'sender@example.test',
   saved = await loadSettings();
   assert.strictEqual(saved.notificationMode, 'window', 'миграция не срабатывает повторно');
 
+  // Отметка показа и подтверждение очереди идут через одну блокировку
+  h = setup();
+  await saveWindowNotices([{ id: 'A', email: 'x', messages: [] }, { id: 'B', email: 'x', messages: [] }]);
+  await Promise.all([markNoticesDisplayed(['A']), discardDisplayedNoticeBatches()]);
+  assert.deepStrictEqual((await loadWindowNotices()).map((i) => i.id), ['B'], 'показанная пачка убрана');
+  assert.deepStrictEqual(await loadDisplayedNoticeIds(), [], 'отметки показа очищены');
+
   console.log('notification regression tests passed: migration, account modes, delivery, permissions, legacy queue, offscreen, session-only tokens');
 })().catch((error) => {
   console.error('notification regression test failed:', error.stack || error);

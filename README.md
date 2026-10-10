@@ -131,6 +131,7 @@
 node tools/smoke_test.js
 node tools/notification_test.js
 node tools/sound_test.js
+node tools/options_test.js
 ```
 
 Структура:
