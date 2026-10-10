@@ -74,7 +74,15 @@ function renderSoundChoice(soundId) {
   $('btn-sound-remove').hidden = !customSound;
 }
 
+let soundBusy = false;
+
+function setSoundBusy(busy) {
+  soundBusy = busy;
+  for (const id of ['soundId', 'btn-sound-preview', 'btn-sound-upload', 'btn-sound-remove']) $(id).disabled = busy;
+}
+
 function previewSound() {
+  soundStatus('');
   if (previewAudio) previewAudio.pause();
   const id = $('soundId').value;
   const src = id === CUSTOM_SOUND_ID && customSound
@@ -98,7 +106,12 @@ function readAsDataUrl(file) {
 function canDecode(dataUrl) {
   return new Promise((resolve) => {
     const audio = new Audio();
-    const done = (ok) => { clearTimeout(timer); audio.removeAttribute('src'); resolve(ok); };
+    const done = (ok) => {
+      clearTimeout(timer);
+      audio.removeAttribute('src');
+      audio.load(); // освобождает загруженные данные
+      resolve(ok);
+    };
     const timer = setTimeout(() => done(false), 5000);
     audio.addEventListener('loadedmetadata', () => done(true), { once: true });
     audio.addEventListener('error', () => done(false), { once: true });
@@ -106,11 +119,35 @@ function canDecode(dataUrl) {
   });
 }
 
-async function uploadSound(file) {
-  const error = validateSoundFile(file);
-  if (error) return soundStatus(error, true);
-  soundStatus('Загружаем…');
+// Одна операция со звуком за раз: кнопки заблокированы, ошибка показывается в строке статуса.
+async function runSoundAction(action) {
+  if (soundBusy) return;
+  setSoundBusy(true);
   try {
+    await action();
+  } catch (e) {
+    soundStatus('Не получилось: ' + String(e && e.message || e), true);
+  } finally {
+    setSoundBusy(false);
+  }
+}
+
+// Сохраняет выбранную мелодию; при ошибке возвращает в списке сохранённый выбор.
+async function saveSoundChoice(successText) {
+  const resp = await save(true);
+  if (!resp.ok) {
+    renderSoundChoice(settingsDraft && settingsDraft.soundId);
+    soundStatus('Не удалось сохранить выбор мелодии', true);
+    return;
+  }
+  soundStatus(successText);
+}
+
+function uploadSound(file) {
+  return runSoundAction(async () => {
+    const error = validateSoundFile(file);
+    if (error) return soundStatus(error, true);
+    soundStatus('Загружаем…');
     // тип берём по расширению: браузер может не указать его или указать иначе
     const raw = await readAsDataUrl(file);
     const dataUrl = 'data:' + customSoundMime(file.name) + raw.slice(raw.indexOf(';'));
@@ -118,19 +155,17 @@ async function uploadSound(file) {
     customSound = { name: String(file.name).slice(0, 80), type: customSoundMime(file.name), size: file.size, dataUrl };
     await chrome.storage.local.set({ customSound });
     renderSoundChoice(CUSTOM_SOUND_ID);
-    await save(true);
-    soundStatus('Свой звук сохранён');
-  } catch (e) {
-    soundStatus('Не удалось загрузить файл: ' + String(e && e.message || e), true);
-  }
+    await saveSoundChoice('Свой звук сохранён');
+  });
 }
 
-async function removeCustomSound() {
-  customSound = null;
-  await chrome.storage.local.remove('customSound');
-  renderSoundChoice($('soundId').value);
-  await save(true);
-  soundStatus('Свой звук удалён, выбран «' + SOUND_PRESETS[0].title + '»');
+function removeCustomSound() {
+  return runSoundAction(async () => {
+    customSound = null;
+    await chrome.storage.local.remove('customSound');
+    renderSoundChoice($('soundId').value);
+    await saveSoundChoice('Свой звук удалён, выбрана мелодия «' + $('soundId').selectedOptions[0].text + '»');
+  });
 }
 
 function renderAccountPreferences(state, settings) {
@@ -224,6 +259,11 @@ function renderStatus(state) {
 }
 
 async function save(silent) {
+  // без загруженных настроек форма содержит значения по умолчанию — сохранять их нельзя
+  if (!settingsDraft) {
+    if (!silent) toast('Настройки ещё не загружены');
+    return { ok: false, error: 'настройки ещё не загружены' };
+  }
   const settings = collectSettings();
   const pending = settingsSaveQueue.then(() => send({ type: 'saveSettings', settings }));
   settingsSaveQueue = pending.then((resp) => resp, (error) => ({ ok: false, error: String(error && error.message || error) }));
@@ -239,7 +279,7 @@ async function save(silent) {
 
 function disableSettingsInputs(disabled) {
   $('interval').disabled = disabled;
-  $('soundId').disabled = disabled;
+  setSoundBusy(disabled);
   for (const key of SETTING_KEYS) $(key).disabled = disabled;
   for (const select of $('account-preferences').querySelectorAll('select')) select.disabled = disabled;
 }
@@ -253,6 +293,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const resp = await send({ type: 'getState' });
   if (resp.ok) {
     applySettings(resp.settings || {});
+    // выбран свой звук, а файла нет (удалён в другой вкладке) — сохраняем то, что показано в списке
+    if (resp.settings && resp.settings.soundId === CUSTOM_SOUND_ID && !customSound) save(true);
     renderStatus(resp.state);
     renderAccountPreferences(resp.state, settingsDraft);
   }

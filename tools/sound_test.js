@@ -54,6 +54,7 @@ function setupOffscreen({ failDataUrl = false } = {}) {
     console,
     chrome: {
       runtime: {
+        id: 'test-ext',
         getURL: (f) => 'chrome-extension://test/' + f,
         onMessage: { addListener(fn) { listener = fn; } }
       }
@@ -61,7 +62,7 @@ function setupOffscreen({ failDataUrl = false } = {}) {
   };
   vm.createContext(ctx);
   vm.runInContext(read('offscreen.js'), ctx, { filename: 'offscreen.js' });
-  return { created, send: (msg) => listener(msg, {}, () => {}) };
+  return { created, send: (msg, sender = { id: 'test-ext' }) => listener(msg, sender, () => {}) };
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 10));
@@ -131,6 +132,7 @@ const DATA = 'data:audio/wav;base64,UklGRg==';
   assert.strictEqual(validateSoundFile({ name: 'a.wav', type: '', size: 1000 }), null, 'тип по расширению, если браузер не указал');
   assert.ok(validateSoundFile({ name: 'a.mp3', type: 'audio/mpeg', size: 1024 * 1024 + 1 }), 'больше 1 МБ — ошибка');
   assert.ok(validateSoundFile({ name: 'a.exe', type: 'application/x-msdownload', size: 10 }), 'не аудио — ошибка');
+  assert.strictEqual(validateSoundFile({ name: 'a.ogg', type: 'video/ogg', size: 10 }), null, 'ogg с необычным MIME-типом принимается');
   assert.ok(validateSoundFile({ name: 'a.mp3', type: 'audio/mpeg', size: 0 }), 'пустой файл — ошибка');
   assert.ok(validateSoundFile(null), 'нет файла — ошибка');
   console.log('✓ 8: проверка своего файла');
@@ -148,7 +150,9 @@ const DATA = 'data:audio/wav;base64,UklGRg==';
   assert.strictEqual(o.created[3].src, 'chrome-extension://test/sound/chime.wav', 'внешний адрес не играет');
   o.send({ type: 'playSound', dataUrl: 'data:text/html;base64,AAAA', file: 'chime.wav' });
   assert.strictEqual(o.created[4].src, 'chrome-extension://test/sound/chime.wav', 'не аудио — не играет');
-  console.log('✓ 9: offscreen проверяет источник звука');
+  o.send({ type: 'playSound', file: 'bell.wav' }, { id: 'other-extension' });
+  assert.strictEqual(o.created.length, 5, 'сообщение от другого расширения игнорируется');
+  console.log('✓ 9: offscreen проверяет источник звука и отправителя');
 
   // 10. Свой файл не воспроизводится → стандартный сигнал
   o = setupOffscreen({ failDataUrl: true });

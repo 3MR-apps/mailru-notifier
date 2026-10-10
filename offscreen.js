@@ -19,8 +19,9 @@ function play(src, volume) {
   return audio.play();
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
+chrome.runtime.onMessage.addListener((msg, sender) => {
   if (!msg || msg.type !== 'playSound') return;
+  if (!sender || sender.id !== chrome.runtime.id) return; // только из самого расширения
   const volume = typeof msg.volume === 'number' ? Math.min(1, Math.max(0, msg.volume)) : 0.8;
   const fallback = packagedSound(msg.file);
   const custom = typeof msg.dataUrl === 'string' && msg.dataUrl.startsWith('data:audio/') ? msg.dataUrl : null;
