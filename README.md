@@ -22,7 +22,7 @@
 
 Расширения нет в Chrome Web Store, его ставят вручную.
 
-1. Скачайте код: на этой странице нажмите Code → Download ZIP и распакуйте архив. Или выполните `git clone https://github.com/WebGIld/mailru-notifier.git`.
+1. Скачайте архив `mailru-notifier-<версия>.zip` из раздела [Releases](https://github.com/WebGIld/mailru-notifier/releases) и распакуйте. Или выполните `git clone https://github.com/WebGIld/mailru-notifier.git`.
 2. Откройте в Chrome адрес `chrome://extensions`.
 3. Включите «Режим разработчика» в правом верхнем углу.
 4. Нажмите «Загрузить распакованное расширение» и выберите папку с файлом `manifest.json`.
