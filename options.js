@@ -32,7 +32,7 @@ function toast(text) {
 }
 
 function collectSettings() {
-  const s = { intervalMinutes: parseInt($('interval').value, 10) || 2 };
+  const s = { intervalMinutes: parseInt($('interval').value, 10) || 2, soundId: $('soundId').value };
   for (const k of SETTING_KEYS) s[k] = k === 'notificationMode' ? $('notificationMode').value : $(k).checked;
   s.accountNotificationModes = Object.assign({}, settingsDraft && settingsDraft.accountNotificationModes || {});
   return s;
@@ -49,7 +49,88 @@ function applySettings(s) {
     sel.appendChild(o);
   }
   sel.value = v;
+  renderSoundChoice(s.soundId);
   for (const k of SETTING_KEYS) { if (k === 'notificationMode') $('notificationMode').value = s[k] === 'native' ? 'native' : 'window'; else $(k).checked = !!s[k]; }
+}
+
+/* ---------- мелодия сигнала ---------- */
+
+let customSound = null;   // { name, type, size, dataUrl } из chrome.storage.local
+let previewAudio = null;
+
+function soundStatus(text, bad) {
+  const el = $('sound-status');
+  el.textContent = text || '';
+  el.classList.toggle('bad', !!bad);
+}
+
+// список: встроенные сигналы + «Свой: имя файла», если файл загружен
+function renderSoundChoice(soundId) {
+  const select = $('soundId');
+  const options = SOUND_PRESETS.map((p) => new Option(p.title, p.id));
+  if (customSound) options.push(new Option('Свой: ' + customSound.name, CUSTOM_SOUND_ID));
+  select.replaceChildren(...options);
+  select.value = soundId === CUSTOM_SOUND_ID && !customSound ? DEFAULT_SOUND_ID : (isSoundId(soundId) ? soundId : DEFAULT_SOUND_ID);
+  $('btn-sound-remove').hidden = !customSound;
+}
+
+function previewSound() {
+  if (previewAudio) previewAudio.pause();
+  const id = $('soundId').value;
+  const src = id === CUSTOM_SOUND_ID && customSound
+    ? customSound.dataUrl
+    : chrome.runtime.getURL('sound/' + presetSoundFile(id));
+  previewAudio = new Audio(src);
+  previewAudio.volume = 0.8;
+  previewAudio.play().catch(() => soundStatus('Не удалось воспроизвести звук', true));
+}
+
+function readAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// true, если браузер смог разобрать звук (иначе файл повреждён или формат не тот)
+function canDecode(dataUrl) {
+  return new Promise((resolve) => {
+    const audio = new Audio();
+    const done = (ok) => { clearTimeout(timer); audio.removeAttribute('src'); resolve(ok); };
+    const timer = setTimeout(() => done(false), 5000);
+    audio.addEventListener('loadedmetadata', () => done(true), { once: true });
+    audio.addEventListener('error', () => done(false), { once: true });
+    audio.src = dataUrl;
+  });
+}
+
+async function uploadSound(file) {
+  const error = validateSoundFile(file);
+  if (error) return soundStatus(error, true);
+  soundStatus('Загружаем…');
+  try {
+    // тип берём по расширению: браузер может не указать его или указать иначе
+    const raw = await readAsDataUrl(file);
+    const dataUrl = 'data:' + customSoundMime(file.name) + raw.slice(raw.indexOf(';'));
+    if (!(await canDecode(dataUrl))) return soundStatus('Браузер не смог воспроизвести этот файл', true);
+    customSound = { name: String(file.name).slice(0, 80), type: customSoundMime(file.name), size: file.size, dataUrl };
+    await chrome.storage.local.set({ customSound });
+    renderSoundChoice(CUSTOM_SOUND_ID);
+    await save(true);
+    soundStatus('Свой звук сохранён');
+  } catch (e) {
+    soundStatus('Не удалось загрузить файл: ' + String(e && e.message || e), true);
+  }
+}
+
+async function removeCustomSound() {
+  customSound = null;
+  await chrome.storage.local.remove('customSound');
+  renderSoundChoice($('soundId').value);
+  await save(true);
+  soundStatus('Свой звук удалён, выбран «' + SOUND_PRESETS[0].title + '»');
 }
 
 function renderAccountPreferences(state, settings) {
@@ -158,6 +239,7 @@ async function save(silent) {
 
 function disableSettingsInputs(disabled) {
   $('interval').disabled = disabled;
+  $('soundId').disabled = disabled;
   for (const key of SETTING_KEYS) $(key).disabled = disabled;
   for (const select of $('account-preferences').querySelectorAll('select')) select.disabled = disabled;
 }
@@ -166,6 +248,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('st-version').textContent = 'v' + chrome.runtime.getManifest().version;
 
   // загрузка текущих значений
+  ({ customSound = null } = await chrome.storage.local.get('customSound'));
+  renderSoundChoice(DEFAULT_SOUND_ID); // до ответа фона список не пустой
   const resp = await send({ type: 'getState' });
   if (resp.ok) {
     applySettings(resp.settings || {});
@@ -175,6 +259,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // автосохранение при изменении
   $('interval').addEventListener('change', () => save(false));
+  $('soundId').addEventListener('change', () => { soundStatus(''); save(false); });
+  $('btn-sound-preview').addEventListener('click', previewSound);
+  $('btn-sound-upload').addEventListener('click', () => $('sound-file').click());
+  $('sound-file').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ''; // повторный выбор того же файла тоже срабатывает
+    if (file) uploadSound(file);
+  });
+  $('btn-sound-remove').addEventListener('click', removeCustomSound);
   for (const k of SETTING_KEYS) $(k).addEventListener('change', () => save(false));
 
   $('btn-check').addEventListener('click', async () => {

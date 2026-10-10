@@ -35,6 +35,9 @@
     .row .hint { color: var(--text-2); font-size: 12px; margin-top: 2px; }
     .account-pref-email { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
     .account-pref-row select { width: 210px; max-width: 52%; }
+    .sound-row { flex-wrap: wrap; }
+    .sound-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .sound-status.bad { color: #ff3b30; }
     select, .btn {
       font: inherit; padding: 7px 12px; border-radius: 8px;
       border: 1px solid var(--border); background: var(--card); color: var(--text); cursor: pointer;
@@ -154,6 +157,20 @@
         </div>
         <label class="switch"><input type="checkbox" id="soundEnabled"><span class="slider"></span></label>
       </div>
+      <div class="row sound-row">
+        <div>
+          <div class="label">Мелодия</div>
+          <div class="hint">Встроенный сигнал или свой файл MP3, WAV, OGG до 1 МБ. Свой файл хранится только в этом браузере.</div>
+          <div class="hint sound-status" id="sound-status" role="status" aria-live="polite"></div>
+        </div>
+        <div class="sound-controls">
+          <select id="soundId" aria-label="Мелодия сигнала"></select>
+          <button class="btn" id="btn-sound-preview" type="button">Прослушать</button>
+          <button class="btn" id="btn-sound-upload" type="button">Загрузить свой…</button>
+          <button class="btn danger" id="btn-sound-remove" type="button" hidden>Удалить свой</button>
+          <input type="file" id="sound-file" accept=".mp3,.wav,.ogg,audio/mpeg,audio/wav,audio/ogg" hidden>
+        </div>
+      </div>
     </div>
 
     <div class="card" id="account-preferences-card">
@@ -195,6 +212,7 @@
   </div>
 
   <div id="saved-toast">Сохранено</div>
+  <script src="lib/util.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

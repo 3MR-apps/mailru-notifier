@@ -27,7 +27,8 @@
 - до 100 последних непрочитанных писем на каждый ящик с полями из списка выше — чтобы показать их в окне расширения и не присылать уведомления о старых письмах после перезапуска браузера. Письмо исчезает из списка, когда вы его прочитали или удалили;
 - названия папок с числом непрочитанных;
 - номера писем, которые вы недавно открыли, прочитали или удалили, — чтобы не уведомлять о них повторно; при очередной проверке почты удаляются номера старше двух интервалов проверки (от 10 минут до 2 часов);
-- настройки, в том числе режим уведомлений, порядок и свёрнутость для каждого ящика — по его адресу.
+- настройки, в том числе режим уведомлений, порядок и свёрнутость для каждого ящика — по его адресу;
+- звуковой файл, если вы выбрали свой сигнал. Он никуда не отправляется и удаляется кнопкой «Удалить свой».
 
 Служебный ключ доступа к почте хранится только в оперативной памяти браузера. Он удаляется, когда вы закрываете Chrome, обновляете или отключаете расширение.
 
@@ -83,7 +84,8 @@ In your Chrome profile on your computer:
 - up to 100 recent unread messages per mailbox with the fields above — to show them in the extension window and to avoid notifying about old messages after a browser restart. A message leaves the list once you read or delete it;
 - folder names with unread counts;
 - IDs of messages you recently opened, read or deleted — to avoid repeat notifications; on each mail check, IDs older than two check intervals (10 minutes to 2 hours) are removed;
-- settings, including the notification mode, order and collapsed state of each mailbox — keyed by its address.
+- settings, including the notification mode, order and collapsed state of each mailbox — keyed by its address;
+- your sound file, if you chose a custom alert sound. It is never sent anywhere and is removed with the "Удалить свой" (Remove custom) button.
 
 The mail access key is kept only in browser memory. It is deleted when you close Chrome, update or disable the extension.
 

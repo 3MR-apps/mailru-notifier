@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "3MR — уведомления о почте для Mail.ru",
   "short_name": "3MR Почта",
-  "version": "1.4.4",
+  "version": "1.5.0",
   "description": "Счётчик непрочитанных писем Mail.ru на значке, список писем по клику и уведомления о новых. Пароль не нужен.",
   "minimum_chrome_version": "110",
   "icons": {
