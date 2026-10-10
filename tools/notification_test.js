@@ -231,6 +231,24 @@ const msg = (id) => [{ id, fromName: 'Sender', fromEmail: 'sender@example.test',
   await assert.rejects(() => setToken('user@mail.ru', 'SECRET'), /storage\.session/);
   assert.ok(!JSON.stringify(h.local).includes('SECRET'), 'токен не записан в local');
 
+  // А1: saveSettings принимает только известные ключи и правильные типы
+  h = setup();
+  await saveSettings({ notificationMode: 'window', maxMessagesPerAccount: 150 });
+  let saved = await saveSettings({ evil: '<script>', notifyEnabled: 'false', soundEnabled: 0, perMessageNotifications: 1, notificationMode: 'popup', intervalMinutes: 5 });
+  assert.strictEqual(saved.evil, undefined, 'неизвестный ключ отброшен');
+  assert.strictEqual(h.local.settings.evil, undefined, 'неизвестный ключ не сохранён');
+  assert.strictEqual(saved.notifyEnabled, true, 'строка не меняет булев флаг');
+  assert.strictEqual(saved.soundEnabled, true, 'число не меняет булев флаг');
+  assert.strictEqual(saved.perMessageNotifications, true, 'число не меняет булев флаг');
+  saved = await saveSettings({ soundEnabled: false });
+  assert.strictEqual(saved.soundEnabled, false, 'настоящее булево значение принимается');
+  assert.strictEqual(saved.notificationMode, 'window', 'неверный режим не меняет сохранённый');
+  assert.strictEqual(saved.maxMessagesPerAccount, 150, 'ключ, которого нет в форме настроек, сохраняется');
+  assert.strictEqual(saved.settingsMigrationVersion, 1, 'версия миграции сохраняется');
+  assert.strictEqual(saved.intervalMinutes, 5);
+  saved = await loadSettings();
+  assert.strictEqual(saved.notificationMode, 'window', 'миграция не срабатывает повторно');
+
   console.log('notification regression tests passed: migration, account modes, delivery, permissions, legacy queue, offscreen, session-only tokens');
 })().catch((error) => {
   console.error('notification regression test failed:', error.stack || error);

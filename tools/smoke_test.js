@@ -464,5 +464,26 @@ async function waitState(pred, timeout = 3000) {
   assert.strictEqual(av('http://filin.mail.ru/pic'), '', 'только https');
   console.log('✓ сценарий 22: аватары только с mail.ru');
 
+
+  // ========== Сценарий 23: «Сбросить состояние» очищает и очередь окна уведомлений ==========
+  messagesBody = () => MESSAGES;
+  loadBackground(makeFetch({ auth: true }));
+  await waitState(s => s && s.lastCheck > 0);
+  sess.windowNotices = [{ id: 'b1', email: 'user@mail.ru', messages: [{ id: '1', subject: 'Секрет', snippet: 'текст' }] }];
+  sess.displayedNoticeIds = ['b1'];
+  sess.noticeWindowId = 77;
+  await sendBg({ type: 'resetState' });
+  assert.ok(!(sess.windowNotices || []).length, 'очередь окна уведомлений очищена');
+  assert.ok(!(sess.displayedNoticeIds || []).length, 'отметки показа очищены');
+  assert.strictEqual(sess.noticeWindowId, 77, 'id открытого окна сохраняется, чтобы не открылось второе');
+  console.log('✓ сценарий 23: сброс очищает очередь окна уведомлений');
+
+  // ========== Сценарий 24: длинные поля письма обрезаются ==========
+  const long = normalizeMsg({ id: '9', subject: 'Т'.repeat(1000), correspondents: { from: [{ name: 'И'.repeat(1000), email: 'a'.repeat(1000) + '@x.ru' }] } });
+  assert.strictEqual(long.subject.length, 300, 'тема до 300 символов');
+  assert.strictEqual(long.fromName.length, 200, 'имя до 200 символов');
+  assert.strictEqual(long.fromEmail.length, 254, 'адрес до 254 символов');
+  assert.strictEqual(normalizeMsg({ id: '9', subject: 'a &amp; b' }).subject, 'a & b', 'обрезка после раскодирования');
+  console.log('✓ сценарий 24: длинные поля письма обрезаются');
   console.log('\nВСЕ ТЕСТЫ ПРОЙДЕНЫ ✔');
 })().catch(e => { console.error('ТЕСТ ПРОВАЛЕН:', e.message); process.exit(1); });

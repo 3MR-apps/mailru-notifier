@@ -493,6 +493,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           await withStateLock(() => chrome.storage.local.remove(['state', 'pendingNotifs']));
           await clearAllTokens();
           await clearPending();
+          // темы и начала писем из очереди окна уведомлений; id открытого окна не трогаем — иначе откроется второе
+          await updateWindowNotices(async () => { await clearDisplayedNoticeIds(); return []; });
           await checkAll('reset');
           sendResponse({ ok: true });
           break;
