@@ -454,5 +454,15 @@ async function waitState(pred, timeout = 3000) {
   }
   console.log('✓ сценарий 21: host_permissions только для нужных адресов');
 
+
+  // ========== Сценарий 22: аватары загружаются только с серверов mail.ru ==========
+  const av = (url) => normalizeMsg({ id: '1', correspondents: { from: [{ name: 'X', avatars: { '50x50': url } }] } }).avatar;
+  assert.strictEqual(av('//filin.mail.ru/pic?email=a'), 'https://filin.mail.ru/pic?email=a', 'поддомен mail.ru разрешён');
+  assert.strictEqual(av('https://img.imgsmail.ru/a.png'), 'https://img.imgsmail.ru/a.png', 'imgsmail.ru разрешён');
+  assert.strictEqual(av('https://evil.example/a.png'), '', 'чужой домен отклонён');
+  assert.strictEqual(av('https://mail.ru.evil.example/a.png'), '', 'подделка под mail.ru отклонена');
+  assert.strictEqual(av('http://filin.mail.ru/pic'), '', 'только https');
+  console.log('✓ сценарий 22: аватары только с mail.ru');
+
   console.log('\nВСЕ ТЕСТЫ ПРОЙДЕНЫ ✔');
 })().catch(e => { console.error('ТЕСТ ПРОВАЛЕН:', e.message); process.exit(1); });
